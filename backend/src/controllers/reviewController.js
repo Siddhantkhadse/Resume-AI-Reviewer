@@ -34,7 +34,8 @@ export const analyzeResume = async (req, res) => {
     ${resumeText}`;
 
     // 4. Connect to Gemini API and request Stream
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+    const model = genAI.getGenerativeModel({ model: modelName });
     const result = await model.generateContentStream(prompt);
 
     // 5. Pipe the stream directly back to the React frontend
