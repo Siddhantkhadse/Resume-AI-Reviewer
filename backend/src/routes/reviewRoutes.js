@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { analyzeResume } from '../controllers/reviewController.js';
+import { analyzeResume, rewriteResume } from '../controllers/reviewController.js';
 
 const router = express.Router();
 
@@ -11,5 +11,7 @@ const upload = multer({
 }); 
 
 router.post('/analyze', upload.single('resume'), analyzeResume);
+router.post('/rewrite', upload.single('resume'), rewriteResume);
 
 export default router;
+
