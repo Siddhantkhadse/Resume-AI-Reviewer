@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { UploadCloud, FileText, History, Loader2, Sparkles, CheckCircle2, RefreshCw, Sun, Moon, Wand2, Download } from 'lucide-react';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { baseLayout, templateStyles } from './templateConfig';
 
 function App() {
   const [file, setFile] = useState(null);
@@ -12,7 +13,7 @@ function App() {
   const [isDark, setIsDark] = useState(false);
   const [isRewriting, setIsRewriting] = useState(false);
   const [rewrittenResume, setRewrittenResume] = useState('');
-  const [template, setTemplate] = useState('modern');
+  const [template, setTemplate] = useState('Modern');
   const [isExporting, setIsExporting] = useState(false);
 
   const resumeRef = useRef(null);
@@ -171,66 +172,16 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  const getTemplateClasses = (tpl) => {
-    const spacingOverrides = 'text-[11pt] prose-p:my-1 prose-headings:mt-3 prose-headings:mb-1 prose-ul:my-1 prose-ul:mb-4 prose-li:my-0 prose-hr:my-2 leading-snug print:prose-headings:break-after-avoid print:prose-headings:break-inside-avoid print:prose-p:break-inside-avoid print:prose-ul:break-inside-avoid print:prose-li:break-inside-avoid';
-    switch (tpl) {
-      case 'classic':
-        return `prose prose-stone max-w-none prose-headings:text-stone-900 prose-headings:font-serif font-serif ${spacingOverrides}`;
-      case 'minimalist':
-        return `prose prose-zinc max-w-none prose-headings:text-black prose-headings:font-mono font-mono ${spacingOverrides}`;
-      case 'modern':
-      default:
-        return `prose prose-slate max-w-none prose-headings:text-blue-700 prose-headings:font-sans font-sans ${spacingOverrides}`;
-    }
+  const getTemplateStyles = () => {
+    const config = templateStyles[template] || templateStyles.Modern;
+    return `${baseLayout} ${config.typography} ${config.textSize} ${config.heading} ${config.subheading} ${config.text}`;
   };
 
   const selectHistoryItem = (item) => {
     setStreamedText(item.result);
   };
 
-  useEffect(() => {
-    if (!resumeRef.current || !rewrittenResume) return;
 
-    const calculatePagination = () => {
-      const PAGE_HEIGHT = 1122; // A4 height in pixels
-      const GAP = 16;           // Gray gap height
-      const DANGER_ZONE = 180;  // Increased to 180px for better safety margins
-
-      const sections = resumeRef.current.querySelectorAll('h2, h3');
-
-      // 1. Reset all manual margins first
-      sections.forEach(sec => { sec.style.marginTop = '0px'; });
-
-      let currentPage = 1;
-
-      // 2. Iterate and measure LIVE
-      sections.forEach(sec => {
-        // We MUST measure live relative to the container inside the loop, 
-        // because pushing an earlier element down shifts everything below it!
-        const containerTop = resumeRef.current.getBoundingClientRect().top;
-        const secTop = sec.getBoundingClientRect().top;
-        const relativeTop = secTop - containerTop;
-
-        const pageBottom = (currentPage * PAGE_HEIGHT) + ((currentPage - 1) * GAP);
-
-        // If element falls in the danger zone at the bottom of the current page
-        if (relativeTop > (pageBottom - DANGER_ZONE) && relativeTop < pageBottom) {
-          // Distance to the bottom line + the gray gap + exactly 15mm (57px) for the new page's top margin
-          const TOP_PAGE_PADDING = 57;
-          const pushAmount = (pageBottom - relativeTop) + GAP + TOP_PAGE_PADDING;
-
-          sec.style.marginTop = `${pushAmount}px`;
-          currentPage++;
-        } else if (relativeTop >= pageBottom) {
-          currentPage++; // Naturally moved to the next page
-        }
-      });
-    };
-
-    // Wrap in a tiny timeout to ensure ReactMarkdown and fonts have fully painted the DOM
-    const timer = setTimeout(calculatePagination, 150);
-    return () => clearTimeout(timer);
-  }, [rewrittenResume, template]);
 
   return (
     <div className={isDark ? 'dark' : ''}>
@@ -238,27 +189,23 @@ function App() {
         @media print {
           body * { visibility: hidden; }
           #printable-resume, #printable-resume * { visibility: visible; }
-          html, body, #root, .min-h-screen, main {
-            height: auto !important;
-            min-height: auto !important;
-            overflow: visible !important;
-          }
-          @page {
-            size: A4 portrait;
-            margin: 15mm;
-          }
+          html, body, #root, main { height: auto !important; overflow: visible !important; }
+          
+          @page { size: A4 portrait; margin: 15mm; }
+          
           #printable-resume {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            padding: 0 !important; /* Let @page handle physical 15mm margins */
-            background-image: none !important; /* Hides the UI page break in print */
+            position: absolute; left: 0; top: 0; width: 100% !important; max-width: 100% !important;
+            padding: 0 !important; margin: 0 !important; box-shadow: none !important;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
           }
-          /* Strip JS-added margins during print to prevent massive double-gaps on new pages */
-          #printable-resume h2, #printable-resume h3 {
-            margin-top: 1.5em !important;
-            padding-top: 0 !important;
+          
+          /* Force native page breaks for sections and lists */
+          #printable-resume h2, #printable-resume h3 { 
+            page-break-after: avoid !important; break-after: avoid !important; 
+            page-break-inside: avoid !important; break-inside: avoid !important;
+          }
+          #printable-resume ul, #printable-resume p, #printable-resume li { 
+            page-break-inside: avoid !important; break-inside: avoid !important; 
           }
         }
       `}</style>
@@ -330,8 +277,8 @@ function App() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className={`group relative border-2 border-dashed transition-all duration-300 rounded-2xl p-8 sm:p-12 bg-white/70 dark:bg-slate-900/50 backdrop-blur-xl border-slate-300 dark:border-white/10 flex flex-col items-center justify-center text-center shadow-xl print:hidden ${isDragging
-                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-[0_0_25px_rgba(96,165,250,0.4)]'
-                  : 'hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-[0_0_20px_rgba(96,165,250,0.3)]'
+                ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-[0_0_25px_rgba(96,165,250,0.4)]'
+                : 'hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-[0_0_20px_rgba(96,165,250,0.3)]'
                 }`}
             >
               <input type="file" id="resume-upload" className="hidden" accept=".pdf" onChange={handleFileChange} />
@@ -449,16 +396,16 @@ function App() {
                   </span>
                   <div className="flex items-center gap-2">
                     {[
-                      { id: 'modern', label: 'Modern' },
-                      { id: 'classic', label: 'Classic' },
-                      { id: 'minimalist', label: 'Minimalist' }
+                      { id: 'Modern', label: 'Modern' },
+                      { id: 'Classic', label: 'Classic' },
+                      { id: 'Minimalist', label: 'Minimalist' }
                     ].map((t) => (
                       <button
                         key={t.id}
                         onClick={() => setTemplate(t.id)}
                         className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${template === t.id
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-white/80 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-white/80 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600'
                           }`}
                       >
                         {t.label}
@@ -468,26 +415,21 @@ function App() {
                 </div>
 
                 {/* Scrollable Desk Canvas Container with Strict A4 Paper Preview */}
-                <div className="w-full overflow-x-auto bg-slate-200 dark:bg-slate-800 p-4 sm:p-8 rounded-lg shadow-inner print:p-0 print:bg-transparent print:overflow-visible">
+                <div className="w-full h-full min-h-screen overflow-x-auto bg-slate-300 py-8 px-4 flex justify-center print:bg-transparent print:p-0 print:overflow-visible print:block">
                   <div
                     id="printable-resume"
                     ref={resumeRef}
-                    style={{
-                      backgroundImage: 'repeating-linear-gradient(to bottom, transparent, transparent 1122px, #cbd5e1 1122px, #cbd5e1 1138px)'
-                    }}
-                    className="w-[210mm] min-h-[297mm] mx-auto bg-white shadow-2xl p-[15mm] box-border text-black print:w-full print:min-h-0 print:h-auto print:m-0 print:p-0 print:shadow-none print:border-none"
+                    className={getTemplateStyles()}
                   >
-                    <div className={getTemplateClasses(template)}>
-                      {rewrittenResume ? (
-                        <ReactMarkdown>{rewrittenResume}</ReactMarkdown>
-                      ) : (
-                        isRewriting && (
-                          <span className="text-slate-400 animate-pulse flex items-center gap-2 font-mono text-sm">
-                            Rewriting resume into quantifiable ATS format...
-                          </span>
-                        )
-                      )}
-                    </div>
+                    {rewrittenResume ? (
+                      <ReactMarkdown>{rewrittenResume}</ReactMarkdown>
+                    ) : (
+                      isRewriting && (
+                        <span className="text-slate-400 animate-pulse flex items-center gap-2 font-mono text-sm">
+                          Rewriting resume into quantifiable ATS format...
+                        </span>
+                      )
+                    )}
                   </div>
                 </div>
 
